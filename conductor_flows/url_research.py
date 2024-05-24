@@ -1,25 +1,16 @@
 from prefect import flow, task
 import re
 from typing import Union
-import requests
-import os
-import polling2
 import logging
+from apis import ConductorApi
 
 
 logger = logging.getLogger(__name__)
-CONDUCTOR_URL = os.getenv("CONDUCTOR_URL")
-CONDUCTOR_USERNAME = os.getenv("CONDUCTOR_USERNAME")
-CONDUCTOR_PASSWORD = os.getenv("CONDUCTOR_PASSWORD")
-
+conductor_api = ConductorApi()
 
 @task(name="Collect Discord Messages")
 def collect_discord_messages() -> Union[dict, None]:
-    latest_messages = requests.get(
-        url=f"{CONDUCTOR_URL}/buckets/object/latest/",
-        params={"bucket_name": "discord-bucket-dev"},
-        auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-    )
+    latest_messages = conductor_api.get_latest_messages()
     if latest_messages.ok:
         return latest_messages.json()
     else:
@@ -35,11 +26,7 @@ def extract_html(message: dict):
 
 @task(name="URL Summary Task")
 def summarize_urls(urls: list[str]) -> Union[dict, None]:
-    url_summary = requests.post(
-        url=f"{CONDUCTOR_URL}/collect/url/summarize/",
-        json={"urls": urls},
-        auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-    )
+    url_summary = conductor_api.post_summarize_urls(urls)
     if url_summary.ok:
         return url_summary.json()
     else:
@@ -53,14 +40,7 @@ def summarize_urls(urls: list[str]) -> Union[dict, None]:
 def wait_for_url_summary(url_summary_response: dict) -> Union[str, None]:
     task_id = url_summary_response.get("task_id")
     logger.info(f"Waiting for task {task_id} to complete ...")
-    task_complete = polling2.poll(
-        lambda: requests.get(
-            url=f"{CONDUCTOR_URL}/collect/tasks/{task_id}/",
-            auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-        ).json().get("status") == "C",
-        step=5,
-        timeout=60*10
-    )
+    task_complete = conductor_api.wait_for_task(task_id)
     if task_complete:
         logger.info(f"Task {task_id} is complete, collecting summaries ...")
         return task_id
@@ -69,10 +49,7 @@ def wait_for_url_summary(url_summary_response: dict) -> Union[str, None]:
 @task(name="Collect All URL Summaries")
 def collect_all_url_summaries(task_id: str) -> Union[list[dict], None]:
     # collect all summaries with task_id from s3 bucket
-    url_summaries = requests.get(
-        url=f"{CONDUCTOR_URL}/collect/tasks/{task_id}/",
-        auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-    )
+    url_summaries = conductor_api.get_task_status(task_id)
     if url_summaries.ok:
         logger.info(f"Collecting all URL summaries for task {task_id} ...")
         return url_summaries.json().get("url_summary")
@@ -83,11 +60,7 @@ def collect_all_url_summaries(task_id: str) -> Union[list[dict], None]:
 @task(name="Get Final Summary")
 def submit_final_summary(summary_data: list[dict]) -> Union[dict, None]:
     contents = [entry['content'] for entry in summary_data]
-    final_summary = requests.post(
-        url=f"{CONDUCTOR_URL}/chains/summarize/",
-        json={"content": contents},
-        auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-    )
+    final_summary = conductor_api.chains_summarize(contents)
     if final_summary.ok:
         return final_summary.json()
     else:
@@ -101,14 +74,7 @@ def submit_final_summary(summary_data: list[dict]) -> Union[dict, None]:
 def wait_for_final_summary(url_summary_response: dict) -> Union[str, None]:
     task_id = url_summary_response.get("task_id")
     logger.info(f"Waiting for task {task_id} to complete ...")
-    task_complete = polling2.poll(
-        lambda: requests.get(
-            url=f"{CONDUCTOR_URL}/chains/tasks/{task_id}/",
-            auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-        ).json().get("status") == "C",
-        step=5,
-        timeout=60*10
-    )
+    task_complete = conductor_api.wait_for_task(task_id)
     if task_complete:
         logger.info(f"Task {task_id} is complete, collecting summaries ...")
         return task_id
@@ -117,10 +83,7 @@ def wait_for_final_summary(url_summary_response: dict) -> Union[str, None]:
 @task(name="Collect Final Summary")
 def get_final_summary(task_id: str) -> Union[list[dict], None]:
     # collect all summaries with task_id from s3 bucket
-    final_summary = requests.get(
-        url=f"{CONDUCTOR_URL}/chains/tasks/{task_id}/",
-        auth=(CONDUCTOR_USERNAME, CONDUCTOR_PASSWORD)
-    )
+    final_summary = conductor_api.get_chains_task(task_id)
     if final_summary.ok:
         logger.info(f"Collecting final summary for task {task_id} ...")
         return final_summary.json().get("summary")
@@ -147,7 +110,3 @@ def url_research_flow():
         if wait_for_final_summary_task:
             final_summary = get_final_summary(wait_for_final_summary_task)
             print(final_summary)
-
-
-if __name__ == "__main__":
-    url_research_flow()
