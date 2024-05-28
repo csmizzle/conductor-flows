@@ -6,7 +6,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-dir
 
 # Add our flow code to the image
-COPY ./conductor-flows ./conductor-flows
+COPY ./conductor_flows ./conductor_flows
 
 # Run our flow script when the container starts
 CMD ["python", "./conductor_flows/deployment.py"]
