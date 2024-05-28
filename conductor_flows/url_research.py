@@ -8,6 +8,7 @@ from apis import ConductorApi
 logger = logging.getLogger(__name__)
 conductor_api = ConductorApi()
 
+
 @task(name="Collect Discord Messages")
 def collect_discord_messages() -> Union[dict, None]:
     latest_messages = conductor_api.get_latest_messages()
@@ -19,7 +20,9 @@ def collect_discord_messages() -> Union[dict, None]:
 
 @task(name="Extract HTML from Discord Messages")
 def extract_html(message: dict):
-    url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+    url_pattern = re.compile(
+        r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+    )
     urls = re.findall(url_pattern, message)
     return urls
 
@@ -35,7 +38,7 @@ def summarize_urls(urls: list[str]) -> Union[dict, None]:
 
 @task(
     name="Wait for URL Summary Task",
-    description="Polling Conductor Task API until job is complete"
+    description="Polling Conductor Task API until job is complete",
 )
 def wait_for_url_summary(url_summary_response: dict) -> Union[str, None]:
     task_id = url_summary_response.get("task_id")
@@ -59,7 +62,7 @@ def collect_all_url_summaries(task_id: str) -> Union[list[dict], None]:
 
 @task(name="Get Final Summary")
 def submit_final_summary(summary_data: list[dict]) -> Union[dict, None]:
-    contents = [entry['content'] for entry in summary_data]
+    contents = [entry["content"] for entry in summary_data]
     final_summary = conductor_api.chains_summarize(contents)
     if final_summary.ok:
         return final_summary.json()
@@ -69,7 +72,7 @@ def submit_final_summary(summary_data: list[dict]) -> Union[dict, None]:
 
 @task(
     name="Wait for Final Summary Task",
-    description="Polling Conductor Task API until job is complete"
+    description="Polling Conductor Task API until job is complete",
 )
 def wait_for_final_summary(url_summary_response: dict) -> Union[str, None]:
     task_id = url_summary_response.get("task_id")
@@ -88,19 +91,21 @@ def get_final_summary(task_id: str) -> Union[list[dict], None]:
         logger.info(f"Collecting final summary for task {task_id} ...")
         return final_summary.json().get("summary")
     else:
-        logger.error(f"Failed to get final summary objects: {final_summary.status_code}")
+        logger.error(
+            f"Failed to get final summary objects: {final_summary.status_code}"
+        )
 
 
 @flow(
     name="Discord URL Research Flow",
-    description="Extract URLs from Discord messages and summarize them"
+    description="Extract URLs from Discord messages and summarize them",
 )
 def url_research_flow():
     urls = []
     messages = collect_discord_messages()
     if messages:
         for message in messages:
-            urls.extend(extract_html(message['message']))
+            urls.extend(extract_html(message["message"]))
     url_summaries_task = summarize_urls(urls)
     wait_for_url_summary_task = wait_for_url_summary(url_summaries_task)
     if wait_for_url_summary_task:
