@@ -63,7 +63,7 @@ def collect_all_url_summaries(task_id: str) -> Union[list[dict], None]:
 @task(name="Get Final Summary")
 def submit_final_summary(summary_data: list[dict]) -> Union[dict, None]:
     contents = [entry["content"] for entry in summary_data]
-    final_summary = conductor_api.chains_summarize(contents)
+    final_summary = conductor_api.post_chains_summarize(contents)
     if final_summary.ok:
         return final_summary.json()
     else:
