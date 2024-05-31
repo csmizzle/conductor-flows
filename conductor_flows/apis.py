@@ -27,15 +27,15 @@ class ConductorApi:
             auth=(self.conductor_username, self.conductor_password),
         )
 
-    def get_task_status(self, task_id):
+    def get_collect_task_status(self, task_id):
         return requests.get(
             url=f"{self.conductor_url}/collect/tasks/{task_id}/",
             auth=(self.conductor_username, self.conductor_password),
         )
 
-    def wait_for_task(self, task_id):
+    def wait_for_collect_task(self, task_id):
         return polling2.poll(
-            lambda: self.get_task_status(task_id).json().get("status") == "C",
+            lambda: self.get_collect_task_status(task_id).json().get("status") == "C",
             step=5,
             timeout=60 * 10,
         )
@@ -51,4 +51,11 @@ class ConductorApi:
         return requests.get(
             url=f"{self.conductor_url}/chains/tasks/{task_id}/",
             auth=(self.conductor_username, self.conductor_password),
+        )
+
+    def wait_for_chain_task(self, task_id):
+        return polling2.poll(
+            lambda: self.get_chains_task(task_id).json().get("status") == "C",
+            step=5,
+            timeout=60 * 10,
         )

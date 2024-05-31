@@ -3,6 +3,7 @@ import re
 from typing import Union
 import logging
 from apis import ConductorApi
+from utils import save_flow_result
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ def summarize_urls(urls: list[str]) -> Union[dict, None]:
 def wait_for_url_summary(url_summary_response: dict) -> Union[str, None]:
     task_id = url_summary_response.get("task_id")
     logger.info(f"Waiting for task {task_id} to complete ...")
-    task_complete = conductor_api.wait_for_task(task_id)
+    task_complete = conductor_api.wait_for_collect_task(task_id)
     if task_complete:
         logger.info(f"Task {task_id} is complete, collecting summaries ...")
         return task_id
@@ -52,7 +53,7 @@ def wait_for_url_summary(url_summary_response: dict) -> Union[str, None]:
 @task(name="Collect All URL Summaries")
 def collect_all_url_summaries(task_id: str) -> Union[list[dict], None]:
     # collect all summaries with task_id from s3 bucket
-    url_summaries = conductor_api.get_task_status(task_id)
+    url_summaries = conductor_api.get_collect_task_status(task_id)
     if url_summaries.ok:
         logger.info(f"Collecting all URL summaries for task {task_id} ...")
         return url_summaries.json().get("url_summary")
@@ -77,7 +78,7 @@ def submit_final_summary(summary_data: list[dict]) -> Union[dict, None]:
 def wait_for_final_summary(url_summary_response: dict) -> Union[str, None]:
     task_id = url_summary_response.get("task_id")
     logger.info(f"Waiting for task {task_id} to complete ...")
-    task_complete = conductor_api.wait_for_task(task_id)
+    task_complete = conductor_api.wait_for_chain_task(task_id)
     if task_complete:
         logger.info(f"Task {task_id} is complete, collecting summaries ...")
         return task_id
@@ -106,7 +107,7 @@ def url_research_flow():
     if messages:
         for message in messages:
             urls.extend(extract_html(message["message"]))
-    url_summaries_task = summarize_urls(urls)
+    url_summaries_task = summarize_urls(urls[0:2])
     wait_for_url_summary_task = wait_for_url_summary(url_summaries_task)
     if wait_for_url_summary_task:
         summary_data = collect_all_url_summaries(wait_for_url_summary_task)
@@ -114,4 +115,4 @@ def url_research_flow():
         wait_for_final_summary_task = wait_for_final_summary(submitted_final_summary)
         if wait_for_final_summary_task:
             final_summary = get_final_summary(wait_for_final_summary_task)
-            print(final_summary)
+            save_flow_result(final_summary)
