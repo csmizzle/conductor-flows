@@ -115,4 +115,6 @@ def url_research_flow():
         wait_for_final_summary_task = wait_for_final_summary(submitted_final_summary)
         if wait_for_final_summary_task:
             final_summary = get_final_summary(wait_for_final_summary_task)
-            save_flow_result(conductor_api, final_summary)
+            save_flow_result(
+                api=conductor_api, result={"summary": final_summary[0]["summary"]}
+            )
