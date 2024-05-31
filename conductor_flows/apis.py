@@ -59,3 +59,15 @@ class ConductorApi:
             step=5,
             timeout=60 * 10,
         )
+
+    def save_result(self, result, prefect_id: str, flow_id: str, deployment_id: str):
+        return requests.post(
+            url=f"{self.conductor_url}/results/",
+            json={
+                "prefect_id": prefect_id,
+                "flow_id": flow_id,
+                "deployment_id": deployment_id,
+                "results": result,
+            },
+            auth=(self.conductor_username, self.conductor_password),
+        )
