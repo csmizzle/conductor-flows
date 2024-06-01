@@ -16,6 +16,7 @@ conductor_api = ConductorApi()
 def create_apollo_input(query: str) -> Union[dict, None]:
     apollo_input = conductor_api.post_apollo_input(query)
     if apollo_input.ok:
+        logger.info("Apollo input created")
         return apollo_input.json()
     else:
         logger.error(f"Failed to create Apollo input: {apollo_input.status_code}")
@@ -27,6 +28,7 @@ def create_apollo_context(
 ) -> Union[dict, None]:
     apollo_context = conductor_api.post_apollo_context(person_titles, person_locations)
     if apollo_context.ok:
+        logger.info("Apollo context created")
         return apollo_context.json()
     else:
         logger.error(f"Failed to create Apollo context: {apollo_context.status_code}")
@@ -38,6 +40,7 @@ def create_email_from_context(
 ) -> Union[dict, None]:
     email = conductor_api.post_email_from_context(context, tone, sign_off)
     if email.ok:
+        logger.info("Email created")
         return email.json()
     else:
         logger.error(f"Failed to create email: {email.status_code}")
@@ -49,12 +52,15 @@ def market_research_flow(query: str) -> None:
     Flow for market research
     """
     apollo_input = create_apollo_input(query)
+    print(apollo_input)
     apollo_context = create_apollo_context(
-        apollo_input.get("person_titles"), apollo_input.get("person_locations")
+        apollo_input["output"].get("person_titles"),
+        apollo_input["output"].get("person_locations"),
     )
+    print(apollo_context)
     email = create_email_from_context(
-        apollo_context.get("context"),
-        apollo_context.get("tone"),
-        apollo_context.get("sign_off"),
+        apollo_context.get("output"),
+        "formal",
+        "Best, Research Team",
     )
-    save_flow_result(api=conductor_api, result={"email": email})
+    save_flow_result(api=conductor_api, result={"email": email["text"]})
