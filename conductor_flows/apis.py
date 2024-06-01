@@ -63,7 +63,7 @@ class ConductorApi:
 
     def save_result(self, result, prefect_id: str, flow_id: str, deployment_id: str):
         return requests.post(
-            url=f"{self.conductor_url}/results/",
+            url=f"{self.conductor_url}/flows/results/",
             json={
                 "prefect_id": prefect_id,
                 "flow_id": flow_id,
