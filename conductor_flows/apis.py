@@ -1,5 +1,6 @@
 import os
 import requests
+from requests.models import Response
 import polling2
 
 
@@ -69,5 +70,39 @@ class ConductorApi:
                 "deployment_id": deployment_id,
                 "results": result,
             },
+            auth=(self.conductor_username, self.conductor_password),
+        )
+
+    def post_apollo_context(
+        self, person_titles: list[str], person_locations: list[str]
+    ) -> Response:
+        """
+        Get Apollo context for a person
+        """
+        return requests.post(
+            url=f"{self.conductor_url}/chains/apollo/context/",
+            json={"person_titles": person_titles, "person_locations": person_locations},
+            auth=(self.conductor_username, self.conductor_password),
+        )
+
+    def post_apollo_input(self, query: str) -> Response:
+        """
+        Get Apollo input for a query
+        """
+        return requests.post(
+            url=f"{self.conductor_url}/chains/apollo/input/",
+            json={"query": query},
+            auth=(self.conductor_username, self.conductor_password),
+        )
+
+    def post_email_from_context(
+        self, context: str, tone: str, sign_off: str
+    ) -> Response:
+        """
+        Create an email from context and tone
+        """
+        return requests.post(
+            url=f"{self.conductor_url}/chains/email/context/",
+            json={"context": context, "tone": tone, "sign_off": sign_off},
             auth=(self.conductor_username, self.conductor_password),
         )
