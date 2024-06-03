@@ -61,37 +61,39 @@ class ConductorApi:
             timeout=60 * 10,
         )
 
-    def save_result(self, result, prefect_id: str, flow_id: str, deployment_id: str):
+    def save_result(self, result, flow_id: int):
         return requests.post(
             url=f"{self.conductor_url}/flows/results/",
             json={
-                "prefect_id": prefect_id,
                 "flow_id": flow_id,
-                "deployment_id": deployment_id,
                 "results": result,
             },
             auth=(self.conductor_username, self.conductor_password),
         )
 
     def post_apollo_context(
-        self, person_titles: list[str], person_locations: list[str]
+        self, person_titles: list[str], person_locations: list[str], flow_id: int = None
     ) -> Response:
         """
         Get Apollo context for a person
         """
         return requests.post(
             url=f"{self.conductor_url}/chains/apollo/context/",
-            json={"person_titles": person_titles, "person_locations": person_locations},
+            json={
+                "person_titles": person_titles,
+                "person_locations": person_locations,
+                "flow_id": flow_id,
+            },
             auth=(self.conductor_username, self.conductor_password),
         )
 
-    def post_apollo_input(self, query: str) -> Response:
+    def post_apollo_input(self, query: str, flow_id: int = None) -> Response:
         """
         Get Apollo input for a query
         """
         return requests.post(
             url=f"{self.conductor_url}/chains/apollo/input/",
-            json={"query": query},
+            json={"query": query, "flow_id": flow_id},
             auth=(self.conductor_username, self.conductor_password),
         )
 
@@ -104,5 +106,16 @@ class ConductorApi:
         return requests.post(
             url=f"{self.conductor_url}/chains/email/context/",
             json={"context": context, "tone": tone, "sign_off": sign_off},
+            auth=(self.conductor_username, self.conductor_password),
+        )
+
+    def create_flow(self, prefect_id: str, flow_id: str, deployment_id: str):
+        return requests.post(
+            url=f"{self.conductor_url}/flows/",
+            json={
+                "prefect_id": prefect_id,
+                "flow_id": flow_id,
+                "deployment_id": deployment_id,
+            },
             auth=(self.conductor_username, self.conductor_password),
         )
