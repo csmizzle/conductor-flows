@@ -72,7 +72,10 @@ class ConductorApi:
         )
 
     def post_apollo_context(
-        self, person_titles: list[str], person_locations: list[str], flow_id: int = None
+        self,
+        person_titles: list[str],
+        person_locations: list[str],
+        flow_trace: int = None,
     ) -> Response:
         """
         Get Apollo context for a person
@@ -82,30 +85,35 @@ class ConductorApi:
             json={
                 "person_titles": person_titles,
                 "person_locations": person_locations,
-                "flow_id": flow_id,
+                "flow_trace": flow_trace,
             },
             auth=(self.conductor_username, self.conductor_password),
         )
 
-    def post_apollo_input(self, query: str, flow_id: int = None) -> Response:
+    def post_apollo_input(self, query: str, flow_trace: int = None) -> Response:
         """
         Get Apollo input for a query
         """
         return requests.post(
             url=f"{self.conductor_url}/chains/apollo/input/",
-            json={"query": query, "flow_id": flow_id},
+            json={"query": query, "flow_trace": flow_trace},
             auth=(self.conductor_username, self.conductor_password),
         )
 
     def post_email_from_context(
-        self, context: str, tone: str, sign_off: str
+        self, context: str, tone: str, sign_off: str, flow_trace: int = None
     ) -> Response:
         """
         Create an email from context and tone
         """
         return requests.post(
             url=f"{self.conductor_url}/chains/email/context/",
-            json={"context": context, "tone": tone, "sign_off": sign_off},
+            json={
+                "context": context,
+                "tone": tone,
+                "sign_off": sign_off,
+                "flow_trace": flow_trace,
+            },
             auth=(self.conductor_username, self.conductor_password),
         )
 
