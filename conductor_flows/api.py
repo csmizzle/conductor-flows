@@ -61,11 +61,11 @@ class ConductorApi:
             timeout=60 * 10,
         )
 
-    def save_result(self, result, flow_id: int):
+    def save_result(self, result, flow_trace: int):
         return requests.post(
-            url=f"{self.conductor_url}/flows/results/",
+            url=f"{self.conductor_url}/results/",
             json={
-                "flow_id": flow_id,
+                "flow_trace": flow_trace,
                 "results": result,
             },
             auth=(self.conductor_username, self.conductor_password),
@@ -109,13 +109,20 @@ class ConductorApi:
             auth=(self.conductor_username, self.conductor_password),
         )
 
-    def create_flow(self, prefect_id: str, flow_id: str, deployment_id: str):
+    def create_flow_trace(
+        self,
+        prefect_id: str,
+        prefect_deployment_id: str,
+        prefect_name: str,
+        prefect_parameters: dict = None,
+    ) -> Response:
         return requests.post(
             url=f"{self.conductor_url}/flows/",
             json={
-                "prefect_id": prefect_id,
-                "flow_id": flow_id,
-                "deployment_id": deployment_id,
+                "prefect_flow_id": prefect_id,
+                "prefect_deployment_id": prefect_deployment_id,
+                "prefect_name": prefect_name,
+                "prefect_parameters": prefect_parameters,
             },
             auth=(self.conductor_username, self.conductor_password),
         )
