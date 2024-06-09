@@ -101,20 +101,42 @@ def get_final_summary(task_id: str) -> Union[list[dict], None]:
     name="Discord URL Research Flow",
     description="Extract URLs from Discord messages and summarize them",
 )
-def url_research_flow():
+def url_research_flow(flow_trace: int):
     urls = []
     messages = collect_discord_messages()
     if messages:
         for message in messages:
             urls.extend(extract_html(message["message"]))
-    url_summaries_task = summarize_urls(urls[0:2])
+    url_summaries_task = summarize_urls(urls)
     wait_for_url_summary_task = wait_for_url_summary(url_summaries_task)
     if wait_for_url_summary_task:
         summary_data = collect_all_url_summaries(wait_for_url_summary_task)
+        print(summary_data)
         submitted_final_summary = submit_final_summary(summary_data)
         wait_for_final_summary_task = wait_for_final_summary(submitted_final_summary)
         if wait_for_final_summary_task:
             final_summary = get_final_summary(wait_for_final_summary_task)
             save_flow_result(
-                api=conductor_api, result={"summary": final_summary[0]["summary"]}
+                api=conductor_api,
+                flow_trace=flow_trace,
+                result={"summary": final_summary[0]["summary"]},
             )
+            # generate report
+            paragraphs = [
+                {"title": "Executive Summary", "content": final_summary[0]["summary"]},
+            ]
+            for entry in summary_data:
+                paragraphs.append(
+                    {
+                        "title": "Summary of " + entry["url"],
+                        "content": entry["summary"],
+                    }
+                )
+            report = {
+                "title": "Syrinx URL Research Report",
+                "description": "Summary of URLs extracted from Discord messages",
+                "paragraphs": paragraphs,
+            }
+            print(report)
+            created_report = conductor_api.post_report(report)
+            print(created_report.json())

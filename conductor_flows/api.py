@@ -134,3 +134,10 @@ class ConductorApi:
             },
             auth=(self.conductor_username, self.conductor_password),
         )
+
+    def post_report(self, report_data: dict) -> Response:
+        return requests.post(
+            url=f"{self.conductor_url}/reports/",
+            json=report_data,
+            auth=(self.conductor_username, self.conductor_password),
+        )
