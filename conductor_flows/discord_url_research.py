@@ -1,11 +1,31 @@
 from prefect import flow, task
+import re
 from typing import Union
 import logging
 from api import ConductorApi
+from utils import save_flow_result
 
 
 logger = logging.getLogger(__name__)
 conductor_api = ConductorApi()
+
+
+@task(name="Collect Discord Messages")
+def collect_discord_messages() -> Union[dict, None]:
+    latest_messages = conductor_api.get_latest_messages()
+    if latest_messages.ok:
+        return latest_messages.json()
+    else:
+        logger.error(f"Failed to get latest messages: {latest_messages.status_code}")
+
+
+@task(name="Extract HTML from Discord Messages")
+def extract_html(message: dict):
+    url_pattern = re.compile(
+        r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+    )
+    urls = re.findall(url_pattern, message)
+    return urls
 
 
 @task(name="URL Summary Task")
@@ -77,28 +97,17 @@ def get_final_summary(task_id: str) -> Union[list[dict], None]:
         )
 
 
-@task(name="Get Apollo People Context")
-def get_apollo_people_context(company_domains: list[str]) -> dict:
-    domain_contexts = {}
-    for domain in company_domains:
-        people_context = conductor_api.post_apollo_people_context([domain])
-        if people_context.ok:
-            logger.info("Returning Apollo people context ...")
-            domain_contexts[domain] = people_context.json().get("output")
-        else:
-            logger.error(
-                f"Failed to get final summary objects: {people_context.status_code}"
-            )
-    return domain_contexts
-
-
 @flow(
-    name="URL Research Flow",
-    description="Takes a list of URLs from and summarizes them",
+    name="Discord URL Research Flow",
+    description="Extract URLs from Discord messages and summarize them",
 )
-def url_research_flow(flow_trace: int, urls: list[str]):
+def url_research_flow(flow_trace: int):
+    urls = []
+    messages = collect_discord_messages()
+    if messages:
+        for message in messages:
+            urls.extend(extract_html(message["message"]))
     url_summaries_task = summarize_urls(urls)
-    # people_contexts = get_apollo_people_context(urls)
     wait_for_url_summary_task = wait_for_url_summary(url_summaries_task)
     if wait_for_url_summary_task:
         summary_data = collect_all_url_summaries(wait_for_url_summary_task)
@@ -106,6 +115,11 @@ def url_research_flow(flow_trace: int, urls: list[str]):
         wait_for_final_summary_task = wait_for_final_summary(submitted_final_summary)
         if wait_for_final_summary_task:
             final_summary = get_final_summary(wait_for_final_summary_task)
+            save_flow_result(
+                api=conductor_api,
+                flow_trace=flow_trace,
+                result={"summary": final_summary[0]["summary"]},
+            )
             # generate report
             paragraphs = [
                 {"title": "Executive Summary", "content": final_summary[0]["summary"]},

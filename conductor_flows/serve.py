@@ -3,7 +3,7 @@ Deploy flows
 """
 from prefect import serve
 from test_flow import test_flow
-from url_research import url_research_flow
+from conductor_flows.discord_url_research import url_research_flow
 from market_research import market_research_flow
 
 

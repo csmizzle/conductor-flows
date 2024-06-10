@@ -141,3 +141,10 @@ class ConductorApi:
             json=report_data,
             auth=(self.conductor_username, self.conductor_password),
         )
+
+    def post_apollo_url_context(self, company_domains: list[str]) -> Response:
+        return requests.post(
+            url=f"{self.conductor_url}/chains/url/apollo/context/",
+            json={"company_domains": company_domains},
+            auth=(self.conductor_username, self.conductor_password),
+        )
